@@ -20,17 +20,10 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install Chrome & ChromeDriver
+      - name: Install Chromium & ChromeDriver
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget gnupg2
-          # Add Google's apt repo and key
-          wget -qO- https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb stable main" \
-            | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
-          # Install Chrome Stable and matching driver
-          sudo apt-get install -y google-chrome-stable chromium-chromedriver
+          sudo apt-get install -y chromium-browser chromium-chromedriver
 
       - name: Install Python dependencies
         run: |
@@ -38,7 +31,7 @@ jobs:
 
       - name: Run NitroType Leaderboard Script
         env:
-          CHROME_BINARY: /usr/bin/google-chrome-stable
+          CHROME_BINARY: /usr/bin/chromium-browser
           CHROMEDRIVER_PATH: /usr/bin/chromedriver
         run: python nitrotype_leaderboard.py
 
