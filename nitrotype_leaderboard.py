@@ -1,10 +1,15 @@
 import os
-import requests
+import json
+import time
 import pandas as pd
 from datetime import datetime, timezone
-import time
 
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 
+# Your full TEAM_TAGS list here…
 TEAM_TAGS = [
     "PR2W", "NTPD1", "SSH", "BEEHVE", "RFTP", "S0RC", "TCHR", "NTO", "P1RE",
     "CAM0", "NCT", "PSR", "N8TE", "FASZ", "SER", "T0WER", "ZH", "LOVGOD", "DLX",
@@ -27,145 +32,141 @@ TEAM_TAGS = [
     "FERAL", "MEYBO", "LZNT", "XIII", "KNTT", "FTHM", "L3JENS", "C0NQUE", "BAR0NS",
     "WERTQY", "TFV", "WP", "QC", "IR", "PIRC", "FTHM", "1STRED", "FFS", "RR", "VIELLE", "VS"
 ]
-
 TEAM_TAGS = sorted(list(set(TEAM_TAGS)), key=TEAM_TAGS.index)
 
+# --- Selenium Setup (optimized + eager loading) ---
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--disable-logging")
+chrome_options.add_argument("--log-level=3")
+chrome_options.add_argument("--window-size=1920,1080")
+chrome_options.add_experimental_option("prefs", {
+    "profile.managed_default_content_settings.images": 2
+})
+chrome_options.add_argument(
+    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+)
+# Use eager page load strategy
+chrome_options.set_capability("pageLoadStrategy", "eager")
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    "Accept": "application/json",
-}
+driver = webdriver.Chrome(options=chrome_options)
+driver.set_page_load_timeout(10)
 
-
-def get_team_data(team_tag, retries=3, delay=5):
-    """Fetch season data and stats from the API for a team."""
+def get_team_data(driver, team_tag, retries=3, delay=2):
     url = f"https://www.nitrotype.com/api/v2/teams/{team_tag}"
-    for attempt in range(retries):
+    for attempt in range(1, retries + 1):
         try:
-            response = requests.get(url, headers=HEADERS, timeout=10, verify=True)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('status') == 'OK':
-                    season = data['results'].get('season', [])
-                    stats = data['results'].get('stats', [])
-                    return season, stats
+            print(f"[{team_tag}] navigating to API (attempt {attempt})")
+            driver.get(url)
+            print(f"[{team_tag}] page loaded, extracting JSON…")
+            time.sleep(0.5)
+            try:
+                raw = driver.find_element(By.TAG_NAME, "pre").text
+            except:
+                raw = driver.find_element(By.TAG_NAME, "body").text
+            data = json.loads(raw)
+            if data.get("status") == "OK":
+                return data["results"].get("season", []), data["results"].get("stats", [])
+            print(f"[{team_tag}] API returned status: {data.get('status')}")
+            return [], []
+        except TimeoutException:
+            print(f"[{team_tag}] page load timed out")
             return [], []
         except Exception as e:
-            print(f"Error fetching data for team {team_tag}: {e}")
+            print(f"[{team_tag}] error: {e} (retrying in {delay}s)")
             time.sleep(delay)
     return [], []
 
-
 def get_team_stats(stats):
-    """Extract relevant stats from the 'board: season'."""
     for stat in stats:
-        if stat.get('board') == 'season':
+        if stat.get("board") == "season":
             return {
-                'typed': int(stat.get('typed', 0)),
-                'secs': int(stat.get('secs', 0)),
-                'played': int(stat.get('played', 0)),
-                'errs': int(stat.get('errs', 0))
+                "typed": int(stat.get("typed", 0)),
+                "secs":   int(stat.get("secs",   0)),
+                "played": int(stat.get("played", 0)),
+                "errs":   int(stat.get("errs",   0))
             }
-    return {'typed': 0, 'secs': 0, 'played': 0, 'errs': 0}
-
+    return {"typed":0,"secs":0,"played":0,"errs":0}
 
 def calculate_wpm(typed, secs):
-    """Calculate WPM (words per minute) from typed characters and seconds."""
-    return (typed / 5) / (secs / 60) if secs > 0 else 0
-
+    return (typed/5)/(secs/60) if secs > 0 else 0
 
 def calculate_accuracy(typed, errs):
-    """Calculate accuracy as a fraction."""
-    return (typed - errs) / typed if typed > 0 else 0
-
+    return (typed-errs)/typed if typed > 0 else 0
 
 def calculate_points(wpm, accuracy, races):
-    """Calculate total points using the formula: (100 + (wpm/2)) * accuracy * races."""
-    return (100 + (wpm / 2)) * accuracy * races
+    return (100 + (wpm/2)) * accuracy * races
 
+# Write timestamp
+utc_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+with open("timestamp.txt", "w") as f:
+    f.write(f"Last Updated: {utc_ts}")
 
-# Use UTC for timestamp and filenames.
-utc_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-with open("timestamp.txt", "w") as file:
-    file.write(f"Last Updated: {utc_timestamp}")
-
-# Ensure a folder called 'csv_archive' exists
+# Ensure output folder exists
 csv_archive_dir = "csv_archive"
-if not os.path.exists(csv_archive_dir):
-    os.makedirs(csv_archive_dir)
+os.makedirs(csv_archive_dir, exist_ok=True)
 
 all_players = []
-team_summary = {}  # Store team stats
+team_summary = {}
 
-for team_tag in TEAM_TAGS:
-    season_data, stats_data = get_team_data(team_tag)
+for tag in TEAM_TAGS:
+    season_data, stats_data = get_team_data(driver, tag)
     if not season_data:
-        print(f"No seasonal data found for team {team_tag}")
+        print(f"[{tag}] no data, skipping.")
         continue
 
-    # Extract team stats from 'board: season'
-    team_stats = get_team_stats(stats_data)
-    typed = team_stats['typed']
-    secs = team_stats['secs']
-    played = team_stats['played']
-    errs = team_stats['errs']
+    ts = get_team_stats(stats_data)
+    team_wpm = calculate_wpm(ts["typed"], ts["secs"])
+    team_acc = calculate_accuracy(ts["typed"], ts["errs"])
+    team_pts = calculate_points(team_wpm, team_acc, ts["played"])
 
-    team_accuracy = calculate_accuracy(typed, errs)
-    team_wpm = calculate_wpm(typed, secs)
-    team_points = calculate_points(team_wpm, team_accuracy, played)
-
-    team_summary[team_tag] = {
-        'Team': team_tag,
-        'TotalPoints': team_points,
-        'Racers': sum(1 for player in season_data if player.get('points') is not None),
-        'Races': played
+    team_summary[tag] = {
+        "Team": tag,
+        "TotalPoints": team_pts,
+        "Racers": sum(1 for m in season_data if m.get("points") is not None),
+        "Races": ts["played"]
     }
 
-    # Process individual players
-    for member in season_data:
-        if member.get('points') is not None:
-            username = member.get('username', 'N/A')
-            display_name = member.get('displayName', 'Unknown')
-            profile_link = f"https://www.nitrotype.com/racer/{username}"
-            title = member.get('title', 'No Title')
-            car_id = member.get('carID', 0)
-            hue_angle = member.get('carHueAngle', 0)
+    for m in season_data:
+        if m.get("points") is None:
+            continue
+        it, isecs, ierrs, iplayed = (
+            int(m.get("typed", 0)),
+            int(m.get("secs",   0)),
+            int(m.get("errs",   0)),
+            int(m.get("played", 0))
+        )
+        acc = calculate_accuracy(it, ierrs)
+        wpm = calculate_wpm(it, isecs)
+        pts = calculate_points(wpm, acc, iplayed)
 
-            # Convert values to integers
-            ind_typed = int(member.get('typed', 0))
-            ind_secs = int(member.get('secs', 0))
-            ind_errs = int(member.get('errs', 0))
-            ind_races = int(member.get('played', 0))
+        all_players.append({
+            "Username":    m.get("username","N/A"),
+            "ProfileLink": f"https://www.nitrotype.com/racer/{m.get('username','')}",
+            "DisplayName": m.get("displayName","Unknown"),
+            "Title":       m.get("title","No Title"),
+            "CarID":       m.get("carID",0),
+            "CarHueAngle": m.get("carHueAngle",0),
+            "Speed":       wpm,
+            "Races":       iplayed,
+            "Points":      pts,
+            "Accuracy":    acc * 100,
+            "Team":        tag
+        })
 
-            ind_accuracy = calculate_accuracy(ind_typed, ind_errs)
-            ind_wpm = calculate_wpm(ind_typed, ind_secs)
-            ind_points = calculate_points(ind_wpm, ind_accuracy, ind_races)
+if all_players:
+    df = pd.DataFrame(all_players).sort_values("Points", ascending=False)
+    date_stamp = datetime.utcnow().strftime("%Y%m%d")
+    df.to_csv(os.path.join(csv_archive_dir, f'nitrotype_season_leaderboard_{date_stamp}.csv'), index=False)
 
-            all_players.append({
-                'Username': username,
-                'ProfileLink': profile_link,
-                'DisplayName': display_name,
-                'Title': title,
-                'CarID': car_id,
-                'CarHueAngle': hue_angle,
-                'Speed': ind_wpm,
-                'Races': ind_races,
-                'Points': ind_points,
-                'Accuracy': ind_accuracy * 100,
-                'Team': team_tag
-            })
-
-if not all_players:
-    print("No valid player data found. Please verify the team tags and API responses.")
+    df2 = pd.DataFrame(team_summary.values()).sort_values("TotalPoints", ascending=False)
+    df2.to_csv(os.path.join(csv_archive_dir, f'nitrotype_team_leaderboard_{date_stamp}.csv'), index=False)
 else:
-    df = pd.DataFrame(all_players)
-    df = df.sort_values(by='Points', ascending=False)
+    print("No valid player data found. Please verify team tags and API responses.")
 
-    utc_filename = datetime.utcnow().strftime("%Y%m%d")
-    # Save player leaderboard CSV in csv_archive folder based on UTC date.
-    df.to_csv(os.path.join(csv_archive_dir, f'nitrotype_season_leaderboard_{utc_filename}.csv'), index=False)
-
-    df_teams = pd.DataFrame(list(team_summary.values()))
-    df_teams = df_teams.sort_values(by='TotalPoints', ascending=False)
-    # Save team leaderboard CSV in csv_archive folder based on UTC date.
-    df_teams.to_csv(os.path.join(csv_archive_dir, f'nitrotype_team_leaderboard_{utc_filename}.csv'), index=False)
+driver.quit()
