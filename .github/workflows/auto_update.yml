@@ -24,7 +24,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y chromium-browser chromium-chromedriver
+          # Symlink for Selenium default chrome paths:
           sudo ln -sf /usr/bin/chromium-browser /usr/bin/google-chrome
+          sudo ln -sf /usr/bin/chromium-browser /usr/bin/google-chrome-stable
 
       - name: Install Python dependencies
         run: |
