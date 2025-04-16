@@ -20,13 +20,17 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install apt dependencies & symlink Chromium
+      - name: Install Chrome & ChromeDriver
         run: |
           sudo apt-get update
-          sudo apt-get install -y chromium-browser chromium-chromedriver
-          # Symlink for Selenium default chrome paths:
-          sudo ln -sf /usr/bin/chromium-browser /usr/bin/google-chrome
-          sudo ln -sf /usr/bin/chromium-browser /usr/bin/google-chrome-stable
+          sudo apt-get install -y wget gnupg2
+          wget -qO- https://dl.google.com/linux/linux_signing_key.pub \
+            | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          sudo apt-get install -y chromium-chromedriver
 
       - name: Install Python dependencies
         run: |
