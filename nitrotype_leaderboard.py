@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 
@@ -34,7 +35,7 @@ TEAM_TAGS = [
 ]
 TEAM_TAGS = sorted(list(set(TEAM_TAGS)), key=TEAM_TAGS.index)
 
-# --- Selenium Setup (optimized + eager loading) ---
+# --- Selenium Setup (optimized + explicit binary) ---
 chrome_options = Options()
 chrome_options.add_argument("--headless")
 chrome_options.add_argument("--disable-gpu")
@@ -51,10 +52,18 @@ chrome_options.add_argument(
     "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 )
-# Use eager page load strategy
 chrome_options.set_capability("pageLoadStrategy", "eager")
 
-driver = webdriver.Chrome(options=chrome_options)
+# Explicitly point to system-installed Chrome and ChromeDriver
+chrome_options.binary_location = os.getenv(
+    "CHROME_BINARY",
+    "/usr/bin/google-chrome-stable"
+)
+driver_service = Service(executable_path=os.getenv(
+    "CHROMEDRIVER_PATH",
+    "/usr/bin/chromedriver"
+))
+driver = webdriver.Chrome(service=driver_service, options=chrome_options)
 driver.set_page_load_timeout(10)
 
 def get_team_data(driver, team_tag, retries=3, delay=2):
@@ -146,12 +155,12 @@ for tag in TEAM_TAGS:
         pts = calculate_points(wpm, acc, iplayed)
 
         all_players.append({
-            "Username":    m.get("username","N/A"),
+            "Username":    m.get("username", "N/A"),
             "ProfileLink": f"https://www.nitrotype.com/racer/{m.get('username','')}",
-            "DisplayName": m.get("displayName","Unknown"),
-            "Title":       m.get("title","No Title"),
-            "CarID":       m.get("carID",0),
-            "CarHueAngle": m.get("carHueAngle",0),
+            "DisplayName": m.get("displayName", "Unknown"),
+            "Title":       m.get("title", "No Title"),
+            "CarID":       m.get("carID", 0),
+            "CarHueAngle": m.get("carHueAngle", 0),
             "Speed":       wpm,
             "Races":       iplayed,
             "Points":      pts,

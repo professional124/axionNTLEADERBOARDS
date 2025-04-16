@@ -2,7 +2,7 @@ name: Update NitroType Leaderboards
 
 on:
   schedule:
-    - cron: '0 */3 * * *'
+    - cron: '0 */3 * * *'  # every 3 hours
   workflow_dispatch:
 
 jobs:
@@ -12,9 +12,11 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.x"
 
@@ -22,18 +24,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y wget gnupg2
+          # Add Google's apt repo and key
           wget -qO- https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
           echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb stable main" \
             | sudo tee /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update
+          # Install Chrome Stable and matching driver
           sudo apt-get install -y google-chrome-stable chromium-chromedriver
-          sudo ln -sf /usr/bin/google-chrome-stable /usr/bin/google-chrome
 
       - name: Install Python dependencies
         run: |
           pip install selenium pandas
 
       - name: Run NitroType Leaderboard Script
+        env:
+          CHROME_BINARY: /usr/bin/google-chrome-stable
+          CHROMEDRIVER_PATH: /usr/bin/chromedriver
         run: python nitrotype_leaderboard.py
 
       - name: Configure Git
