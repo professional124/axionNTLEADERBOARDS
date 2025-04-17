@@ -32,7 +32,8 @@ TEAM_TAGS = [
     "XMVP", "HFE", "TVM", "IR", "AV", "XBTP", "42712", "TDTY",
     "FERAL", "MEYBO", "LZNT", "XIII", "KNTT", "FTHM", "L3JENS", "C0NQUE", "BAR0NS",
     "WERTQY", "TFV", "WP", "QC", "IR", "PIRC", "FTHM", "1STRED", "FFS", "RR", "VIELLE", "VS",
-    "SWF", "CAT4", "NTY", "CS", "TMW", "ZL", "SBD2", "TXT", "EMPERR", "LWRK", "NCNT"
+    "SWF", "CAT4", "NTY", "CS", "TMW", "ZL", "SBD2", "TXT", "EMPERR", "LWRK", "NCNT",
+    "ECS", "L3JENS"
 ]
 TEAM_TAGS = sorted(list(set(TEAM_TAGS)), key=TEAM_TAGS.index)
 
