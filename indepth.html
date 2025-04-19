@@ -131,85 +131,88 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-  <script>
-    async function getAvailableCsvDates() {
+<script>
+  function generateAllDates(startDateStr) {
+    const dates = [];
+    const startDate = new Date(startDateStr); // e.g., "2025-03-23"
+    const today = new Date();
+
+    while (startDate <= today) {
+      const y = startDate.getUTCFullYear();
+      const m = String(startDate.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(startDate.getUTCDate()).padStart(2, '0');
+      dates.push(`${y}${m}${d}`);
+      startDate.setUTCDate(startDate.getUTCDate() + 1); // next day
+    }
+
+    return dates;
+  }
+
+  async function searchPlayer() {
+    const username = document.getElementById('usernameInput').value.trim().toLowerCase();
+    if (!username) return;
+
+    const results = [];
+    const table = $('#playerHistory').DataTable();
+    table.clear().draw();
+    $('#playerHistory').hide();
+    $('#noResults').text("Searching...");
+
+    const fileDates = generateAllDates("2025-03-23");
+
+    for (let date of fileDates) {
+      const path = `csv_archive/nitrotype_season_leaderboard_${date}.csv`;
       try {
-        const res = await fetch('csv_archive/');
-        const html = await res.text();
-        const matches = html.match(/nitrotype_season_leaderboard_(\d{8})\.csv/g) || [];
-        const dates = matches.map(m => m.match(/\d{8}/)[0]);
-        return [...new Set(dates.sort())];
-      } catch (e) {
-        console.error("Couldn't auto-fetch CSV list. You may need to manually define the dates.");
-        return [];
-      }
-    }
+        const res = await fetch(path);
+        if (!res.ok) continue;
 
-    async function searchPlayer() {
-      const username = document.getElementById('usernameInput').value.trim().toLowerCase();
-      if (!username) return;
+        const text = await res.text();
+        const data = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+        const match = data.find(row => row.ProfileLink?.toLowerCase().includes(username));
 
-      const results = [];
-      const table = $('#playerHistory').DataTable();
-      table.clear().draw();
-      $('#playerHistory').hide();
-      $('#noResults').text("Searching...");
-
-      const fileDates = await getAvailableCsvDates();
-
-      for (let date of fileDates) {
-        const path = `csv_archive/nitrotype_season_leaderboard_${date}.csv`;
-        try {
-          const res = await fetch(path);
-          if (!res.ok) continue;
-
-          const text = await res.text();
-          const data = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
-          const match = data.find(row => row.ProfileLink?.toLowerCase().includes(username));
-
-          if (match) {
-            results.push({
-              date: date,
-              points: Math.round(match.Points) || 0,
-              speed: Math.round(match.Speed) || 0,
-              accuracy: parseFloat(match.Accuracy).toFixed(2) || "0.00",
-              races: match.Races || "0",
-              ppr: (match.Points && match.Races) ? (parseFloat(match.Points) / parseFloat(match.Races)).toFixed(2) : "0.00",
-              team: match.Team || "—"
-            });
-          }
-        } catch (e) {
-          console.error(`Failed to load ${path}`, e);
+        if (match) {
+          results.push({
+            date: date,
+            points: Math.round(match.Points) || 0,
+            speed: Math.round(match.Speed) || 0,
+            accuracy: parseFloat(match.Accuracy).toFixed(2) || "0.00",
+            races: match.Races || "0",
+            ppr: (match.Points && match.Races) ? (parseFloat(match.Points) / parseFloat(match.Races)).toFixed(2) : "0.00",
+            team: match.Team || "—"
+          });
         }
-      }
-
-      if (results.length) {
-        $('#noResults').text("");
-        $('#playerHistory').show();
-        table.rows.add(results).draw();
-      } else {
-        $('#noResults').text("No records found for that username.");
+      } catch (e) {
+        console.warn(`Failed to load: ${path}`);
       }
     }
 
-    $(document).ready(() => {
-      $('#playerHistory').DataTable({
-  order: [[0, 'desc']],  // Sort by date column descending
+    if (results.length) {
+      $('#noResults').text("");
+      $('#playerHistory').show();
+      table.rows.add(results).draw();
+    } else {
+      $('#noResults').text("No records found for that username.");
+    }
+  }
 
-        paging: false,
-        searching: false,
-        info: false,
-        columns: [
-          { data: 'date' },
-          { data: 'points' },
-          { data: 'speed' },
-          { data: 'accuracy' },
-          { data: 'races' },
-          { data: 'ppr' },
-          { data: 'team' }
-        ]
-      });
+  $(document).ready(() => {
+    $('#playerHistory').DataTable({
+      paging: false,
+      searching: false,
+      info: false,
+      order: [[0, 'desc']],
+      columns: [
+        { data: 'date' },
+        { data: 'points' },
+        { data: 'speed' },
+        { data: 'accuracy' },
+        { data: 'races' },
+        { data: 'ppr' },
+        { data: 'team' }
+      ]
     });
-  </script>
+  });
+</script>
+
 </body>
 </html>
