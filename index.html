@@ -214,6 +214,7 @@
     <nav>
       <a href="index.html">Players</a>
       <a href="teams.html">Teams</a>
+      <a href="indepth.html">In-Depth Search</a>
       <a href="tierlist.html">Tierlist</a>
     </nav>
   </div>
@@ -260,139 +261,119 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
   <script>
-    // Fetch the timestamp from timestamp.txt as UTC and display it.
-    fetch("timestamp.txt")
-      .then(response => response.text())
-      .then(text => {
-        // Remove "Last Updated:" prefix and trim spaces
-        const serverTimestamp = text.replace("Last Updated:", "").trim();
-        // We assume the saved timestamp is in UTC.
-        const utcDate = new Date(serverTimestamp + " UTC");
-        document.getElementById("lastUpdated").textContent =
-          "Last Updated (Your Local Time): " + utcDate.toLocaleString() + " ";
-      })
-      .catch(error => {
-        console.error("Error fetching the timestamp:", error);
-        document.getElementById("lastUpdated").textContent =
-          "Last Updated: Error loading timestamp.";
+  fetch("timestamp.txt")
+    .then(response => response.text())
+    .then(text => {
+      const serverTimestamp = text.replace("Last Updated:", "").trim();
+      const utcDate = new Date(serverTimestamp + " UTC");
+      document.getElementById("lastUpdated").textContent =
+        "Last Updated (Your Local Time): " + utcDate.toLocaleString() + " ";
+    })
+    .catch(error => {
+      console.error("Error fetching the timestamp:", error);
+      document.getElementById("lastUpdated").textContent =
+        "Last Updated: Error loading timestamp.";
+    });
+
+  function formatUTCDate(date) {
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return y + m + d;
+  }
+
+  const playerCsv = `csv_archive/nitrotype_season_leaderboard_${formatUTCDate(new Date())}.csv`;
+
+  Papa.parse(playerCsv, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      const rawData = results.data;
+
+      rawData.sort((a, b) => parseFloat(b.Points) - parseFloat(a.Points));
+
+      const processedData = rawData.map((row, index) => {
+        const rank = index + 1;
+        const rankDisplay = rank === 1 ? `<span class="gold">${rank}</span>` :
+                             rank === 2 ? `<span class="silver">${rank}</span>` :
+                             rank === 3 ? `<span class="bronze">${rank}</span>` :
+                             rank;
+
+        // Extract username from profile link
+        let username = "";
+        if (row.ProfileLink && row.ProfileLink.includes("/racer/")) {
+          username = row.ProfileLink.split("/racer/")[1].toLowerCase();
+        }
+
+        return {
+          rank: rankDisplay,
+          displayName: row.DisplayName || 'Unknown',
+          profileLink: row.ProfileLink || '#',
+          username: username,
+          title: row.Title || 'No Title',
+          points: Math.round(parseFloat(row.Points)) || 0,
+          speed: Math.round(row.Speed) || 0,
+          accuracy: parseFloat(row.Accuracy).toFixed(2) || 0,
+          races: row.Races || 0,
+          team: row.Team || '',
+          pointsPerRace: (row.Points && row.Races)
+            ? (parseFloat(row.Points) / parseFloat(row.Races)).toFixed(2)
+            : 0
+        };
       });
 
-    // Helper: Format date as YYYYMMDD using UTC, for file names.
-    function formatUTCDate(date) {
-      const y = date.getUTCFullYear();
-      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(date.getUTCDate()).padStart(2, '0');
-      return y + m + d;
+      $('#leaderboard').DataTable({
+        data: processedData,
+        pageLength: 100,
+        order: [[2, 'desc']],
+        columnDefs: [
+          { targets: '_all', orderSequence: ["desc", "asc"] },
+          { targets: [8], visible: false, searchable: true } // Hidden username column
+        ],
+        dom: '<"top"lf>rt<"bottom"ip>',
+        columns: [
+          { data: 'rank', render: data => data },
+          {
+            data: null,
+            render: (data) => `
+              <a href="${data.profileLink}" target="_blank" style="color: #4aa3df; font-weight: 600;">
+                ${data.displayName}
+              </a>
+              <br>
+              <span class="subtitle">"${data.title}"</span>
+            `
+          },
+          {
+            data: 'points',
+            render: (data, type) => type === 'display' ? Number(data).toLocaleString() : data
+          },
+          { data: 'speed' },
+          { data: 'accuracy' },
+          {
+            data: 'races',
+            render: (data, type) => type === 'display' ? Number(data).toLocaleString() : data
+          },
+          {
+            data: 'pointsPerRace',
+            render: (data, type) => type === 'display' ? Number(data).toLocaleString() : data
+          },
+          {
+            data: 'team',
+            render: team => team
+              ? `<a href="https://nitrotype.com/team/${team}" target="_blank" style="color: #6fcc7c;">
+                  ${team}
+                </a>` : ''
+          },
+          { data: 'username' } // Hidden searchable username column
+        ],
+        initComplete: function() {
+          document.getElementById('message').textContent = '';
+        }
+      });
     }
+  });
+</script>
 
-    // Update CSV path to use the csv_archive folder and UTC date.
-    const playerCsv = `csv_archive/nitrotype_season_leaderboard_${formatUTCDate(new Date())}.csv`;
-
-    Papa.parse(playerCsv, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: function(results) {
-        const rawData = results.data;
-
-        // Sort data by points descending
-        rawData.sort((a, b) => parseFloat(b.Points) - parseFloat(a.Points));
-
-        const processedData = rawData.map((row, index) => {
-          // Rank logic:
-          const rank = index + 1;
-
-          // Optional: highlight top 3 with a special class or icon
-          let rankDisplay = rank;
-          if (rank === 1) rankDisplay = `<span class="gold">${rank}</span>`;
-          else if (rank === 2) rankDisplay = `<span class="silver">${rank}</span>`;
-          else if (rank === 3) rankDisplay = `<span class="bronze">${rank}</span>`;
-
-          return {
-            rank: rankDisplay,
-            displayName: row.DisplayName || 'Unknown',
-            profileLink: row.ProfileLink || '#',
-            title: row.Title || 'No Title',
-            points: Math.round(parseFloat(row.Points)) || 0, // Round points
-            speed: Math.round(row.Speed) || 0,
-            accuracy: parseFloat(row.Accuracy).toFixed(2) || 0,
-            races: row.Races || 0,
-            team: row.Team || '',
-            pointsPerRace: (row.Points && row.Races)
-              ? (parseFloat(row.Points) / parseFloat(row.Races)).toFixed(2)
-              : 0
-          };
-        });
-
-        $('#leaderboard').DataTable({
-          data: processedData,
-          pageLength: 100,
-          order: [[2, 'desc']], // Order by points (3rd column, index 2) descending
-          columnDefs: [
-            { targets: '_all', orderSequence: ["desc", "asc"] }
-          ],
-          dom: '<"top"lf>rt<"bottom"ip>',
-          columns: [
-            {
-              data: 'rank',
-              // Because we put HTML in rank, ensure we don't escape it:
-              render: function(data) { return data; }
-            },
-            {
-              data: null,
-              render: (data) => `
-                <a href="${data.profileLink}" target="_blank" style="color: #4aa3df; font-weight: 600;">
-                  ${data.displayName}
-                </a>
-                <br>
-                <span class="subtitle">"${data.title}"</span>
-              `
-            },
-            {
-              data: 'points',
-              render: function(data, type) {
-                return type === 'display'
-                  ? Number(data).toLocaleString()
-                  : data;
-              }
-            },
-            {
-              data: 'speed'
-            },
-            {
-              data: 'accuracy'
-            },
-            {
-              data: 'races',
-              render: function(data, type) {
-                return type === 'display'
-                  ? Number(data).toLocaleString()
-                  : data;
-              }
-            },
-            {
-              data: 'pointsPerRace',
-              render: function(data, type) {
-                return type === 'display'
-                  ? Number(data).toLocaleString()
-                  : data;
-              }
-            },
-            {
-              data: 'team',
-              render: (team) => team
-                ? `<a href="https://nitrotype.com/team/${team}" target="_blank" style="color: #6fcc7c;">
-                     ${team}
-                   </a>`
-                : ''
-            }
-          ],
-          initComplete: function() {
-            document.getElementById('message').textContent = '';
-          }
-        });
-      }
-    });
-  </script>
 </body>
 </html>
