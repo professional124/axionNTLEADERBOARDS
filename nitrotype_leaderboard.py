@@ -33,7 +33,17 @@ TEAM_TAGS = [
     "FERAL", "MEYBO", "LZNT", "XIII", "KNTT", "FTHM", "L3JENS", "C0NQUE", "BAR0NS",
     "WERTQY", "TFV", "WP", "QC", "IR", "PIRC", "FTHM", "1STRED", "FFS", "RR", "VIELLE", "VS",
     "SWF", "CAT4", "NTY", "CS", "TMW", "ZL", "SBD2", "TXT", "EMPERR", "LWRK", "NCNT",
-    "ECS", "L3JENS", "NTA", "NTA3", "NTA4", "BKYS", "DANCE2", "WPJR", "GLXM", "BPR"
+    "ECS", "L3JENS", "NTA", "NTA3", "NTA4", "BKYS", "DANCE2", "WPJR", "GLXM", "BPR",
+    "USP", "T2V", "J2W", "ENMP", "NXC", "ULZ", "F1F2F3", "CR7LEG", "DANATK", "VRSN", 
+    "PAWS", "AGNCY", "100DEV", "M4NTA", "CR0WN5", "DYN", "QX", "P20W", "WD5", "HYP3Z", 
+    "SPRIT3", "EL1TE", "SEMI", "DKC", "DASDAE", "HFCASH", "EXCEDE", "OWLS99", "0CE8N", 
+    "COMP5", "FZH", "BEGO0D", "MMM0", "DIRTH", "LE9ND", "NTGX", "SNOOPY", "SHIBA", "EG", 
+    "CR1", "VTU", "MTC2", "NWH", "PAND96", "EOP", "FTINT", "DSNT", "WUPS", "DOG", "DOGEE", 
+    "DTR", "GRZ", "LERS", "M0AN", "I9", "ZEEK", "USAAT", "LR7", "NTWA", "GODM", "GZRS", "DUCCK", 
+    "4J", "PALICE", "IBM", "QWST", "DYZ", "DB35T", "TEZLA", "FIAMES", "IMT", "NVSEAL", "NTPTS", 
+    "BE3ST1", "NZV", "DDFR", "3X0T15", "XLUVX", "PRETZE", "H0LY", "FS1", "SSME", "GENRAC", 
+    "HDIK96", "WBMS12", "UFOUFO", "AURA80", "ON", "FVRSMR", "911000", "DRICE", "DAGRUP"
+
 ]
 TEAM_TAGS = sorted(list(set(TEAM_TAGS)), key=TEAM_TAGS.index)
 
