@@ -42,7 +42,8 @@ TEAM_TAGS = [
     "DTR", "GRZ", "LERS", "M0AN", "I9", "ZEEK", "USAAT", "LR7", "NTWA", "GODM", "GZRS", "DUCCK", 
     "4J", "PALICE", "IBM", "QWST", "DYZ", "DB35T", "TEZLA", "FIAMES", "IMT", "NVSEAL", "NTPTS", 
     "BE3ST1", "NZV", "DDFR", "3X0T15", "XLUVX", "PRETZE", "H0LY", "FS1", "SSME", "GENRAC", 
-    "HDIK96", "WBMS12", "UFOUFO", "AURA80", "ON", "FVRSMR", "911000", "DRICE", "DAGRUP"
+    "HDIK96", "WBMS12", "UFOUFO", "AURA80", "ON", "FVRSMR", "911000", "DRICE", "DAGRUP", 
+    "THEIBD"
 
 ]
 TEAM_TAGS = sorted(list(set(TEAM_TAGS)), key=TEAM_TAGS.index)
