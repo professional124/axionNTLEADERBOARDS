@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import requests
 import pandas as pd
 from datetime import datetime, timezone
 
@@ -43,8 +44,8 @@ TEAM_TAGS = [
     "4J", "PALICE", "IBM", "QWST", "DYZ", "DB35T", "TEZLA", "FIAMES", "IMT", "NVSEAL", "NTPTS", 
     "BE3ST1", "NZV", "DDFR", "3X0T15", "XLUVX", "PRETZE", "H0LY", "FS1", "SSME", "GENRAC", 
     "HDIK96", "WBMS12", "UFOUFO", "AURA80", "ON", "FVRSMR", "911000", "DRICE", "DAGRUP", 
-    "THEIBD", "R1F", "FAM3", "CZBZ", "TOPGOD", "ENTE", "NBX"
-
+    "THEIBD", "R1F", "FAM3", "CZBZ", "TOPGOD", "ENTE", "NBX", "DF4", "PRZ", "DBP", "NVSEAL", 
+    "NTBT", "TNN", "DRSQ", "L3JENS"
 ]
 TEAM_TAGS = sorted(list(set(TEAM_TAGS)), key=TEAM_TAGS.index)
 
@@ -157,6 +158,20 @@ for tag in TEAM_TAGS:
     for m in season_data:
         if m.get("points") is None:
             continue
+
+        username = m.get("username", "")
+        # --- anti-cheat check ---
+        try:
+            resp = requests.get(
+                f"https://magmal-official.fly.dev/api/bots/search/{username}",
+                timeout=5
+            )
+            if resp.json().get("is_bot"):
+                print(f"[{tag}] Skipping bot user: {username}")
+                continue
+        except Exception as e:
+            print(f"[{tag}] Bot-check failed for {username}: {e}. Including by default.")
+
         it, isecs, ierrs, iplayed = (
             int(m.get("typed", 0)),
             int(m.get("secs",   0)),
@@ -168,8 +183,8 @@ for tag in TEAM_TAGS:
         pts = calculate_points(wpm, acc, iplayed)
 
         all_players.append({
-            "Username":    m.get("username", "N/A"),
-            "ProfileLink": f"https://www.nitrotype.com/racer/{m.get('username','')}",
+            "Username":    username,
+            "ProfileLink": f"https://www.nitrotype.com/racer/{username}",
             "DisplayName": m.get("displayName", "Unknown"),
             "Title":       m.get("title", "No Title"),
             "CarID":       m.get("carID", 0),
