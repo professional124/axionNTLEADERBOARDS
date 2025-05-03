@@ -18,18 +18,23 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: '3.x'
 
       - name: Install Chromium & ChromeDriver
         run: |
           sudo apt-get update
           sudo apt-get install -y chromium-browser chromium-chromedriver
-pip install selenium pandas requests
+
+      - name: Install Python dependencies
+        run: |
+          pip install selenium pandas requests
+
       - name: Run NitroType Leaderboard Script
         env:
           CHROME_BINARY: /usr/bin/chromium-browser
           CHROMEDRIVER_PATH: /usr/bin/chromedriver
-        run: python nitrotype_leaderboard.py
+        run: |
+          python nitrotype_leaderboard.py
 
       - name: Configure Git
         run: |
