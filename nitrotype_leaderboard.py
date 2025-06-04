@@ -1,58 +1,62 @@
 import requests
-import pandas as pd
-from datetime import datetime
+import csv
 import time
+import json
 
-# Team tags you want to track
-teams = ["PR2W", "NTPD1", "SSH", "BEEHVE", "RFTP", "S0RC", "TCHR", "NTO", "P1RE"]
+teams = [
+    'PR2W', 'NTPD1', 'SSH', 'BEEHVE', 'RFTP', 'S0RC', 'TCHR',
+    'NTO', 'P1RE'
+]
 
-# Output file
-output_csv = "leaderboard.csv"
-timestamp_file = "timestamp.txt"
+all_players = []
 
-# Headers to simulate a browser
-headers = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    )
-}
-
-all_data = []
-
-for team in teams:
-    print(f"[{team}] Fetching API (attempt 1)")
-    url = f"https://www.nitrotype.com/api/v2/teams/{team}"
-    for attempt in range(3):
+for team_tag in teams:
+    attempts = 0
+    while attempts < 3:
         try:
-            response = requests.get(url, headers=headers)
+            print(f"[{team_tag}] Fetching API (attempt {attempts+1})")
+            response = requests.get(f'https://www.nitrotype.com/api/v2/teams/{team_tag}')
             response.raise_for_status()
-            data = response.json()
-            members = data['results']['members']
+            team_data = response.json()
+
+            # Debug print to see full data structure (comment out after checking)
+            # print(json.dumps(team_data, indent=2))
+
+            members = team_data.get('team', {}).get('members', [])
+            if not members:
+                print(f"[{team_tag}] No members found, skipping.")
+                break
+
             for member in members:
-                all_data.append({
-                    'Team': team,
-                    'Username': member['name'],
-                    'Display Name': member['displayName'],
-                    'Races': member['numRaces'],
-                    'Points': member['score']
-                })
-            break  # Success: exit retry loop
-        except requests.exceptions.RequestException as e:
-            print(f"[{team}] Error: {e} (retrying in 2s)")
+                row = {
+                    'Team': team_tag,
+                    'Username': member.get('name', 'N/A'),
+                    'DisplayName': member.get('displayName', 'N/A'),
+                    'Races': member.get('races', 0),
+                    'Points': member.get('points', 0),
+                }
+                all_players.append(row)
+
+            break  # Successfully fetched and processed, break retry loop
+
+        except requests.exceptions.HTTPError as e:
+            print(f"[{team_tag}] Error: {e} (retrying in 2s)")
+            attempts += 1
             time.sleep(2)
+        except Exception as e:
+            print(f"[{team_tag}] Unexpected error: {e}")
+            break
+
     else:
-        print(f"[{team}] No data, skipping.")
+        print(f"[{team_tag}] No data, skipping.")
 
-# Save to CSV
-if all_data:
-    df = pd.DataFrame(all_data)
-    df.to_csv(output_csv, index=False)
-    print(f"✅ Saved {output_csv} with {len(df)} rows")
-
-    # Save timestamp
-    with open(timestamp_file, "w") as f:
-        f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    print(f"🕒 Timestamp written to {timestamp_file}")
-else:
+if not all_players:
     print("No valid player data found. Check team tags or API responses.")
+else:
+    keys = ['Team', 'Username', 'DisplayName', 'Races', 'Points']
+    with open('team_members.csv', 'w', newline='', encoding='utf-8') as f:
+        dict_writer = csv.DictWriter(f, fieldnames=keys)
+        dict_writer.writeheader()
+        dict_writer.writerows(all_players)
+
+    print(f"Saved {len(all_players)} players to team_members.csv")
