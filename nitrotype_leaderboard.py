@@ -5,12 +5,6 @@ import requests
 import pandas as pd
 from datetime import datetime, timezone
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
-
 # Your full TEAM_TAGS list here…
 TEAM_TAGS = [
     "PR2W", "NTPD1", "SSH", "BEEHVE", "RFTP", "S0RC", "TCHR", "NTO", "P1RE",
@@ -49,59 +43,24 @@ TEAM_TAGS = [
 ]
 TEAM_TAGS = sorted(list(set(TEAM_TAGS)), key=TEAM_TAGS.index)
 
-# --- Selenium Setup (optimized + explicit binary) ---
-chrome_options = Options()
-chrome_options.add_argument("--headless")
-chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--disable-dev-shm-usage")
-chrome_options.add_argument("--disable-extensions")
-chrome_options.add_argument("--disable-logging")
-chrome_options.add_argument("--log-level=3")
-chrome_options.add_argument("--window-size=1920,1080")
-chrome_options.add_experimental_option("prefs", {
-    "profile.managed_default_content_settings.images": 2
-})
-chrome_options.add_argument(
-    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-)
-chrome_options.set_capability("pageLoadStrategy", "eager")
-
-# Explicitly point to system-installed Chrome and ChromeDriver
-chrome_options.binary_location = os.getenv(
-    "CHROME_BINARY",
-    "/usr/bin/google-chrome-stable"
-)
-driver_service = Service(executable_path=os.getenv(
-    "CHROMEDRIVER_PATH",
-    "/usr/bin/chromedriver"
-))
-driver = webdriver.Chrome(service=driver_service, options=chrome_options)
-driver.set_page_load_timeout(10)
-
-def get_team_data(driver, team_tag, retries=3, delay=2):
+def get_team_data(team_tag, retries=3, delay=2):
     url = f"https://www.nitrotype.com/api/v2/teams/{team_tag}"
     for attempt in range(1, retries + 1):
         try:
-            print(f"[{team_tag}] navigating to API (attempt {attempt})")
-            driver.get(url)
-            print(f"[{team_tag}] page loaded, extracting JSON…")
-            time.sleep(0.5)
-            try:
-                raw = driver.find_element(By.TAG_NAME, "pre").text
-            except:
-                raw = driver.find_element(By.TAG_NAME, "body").text
-            data = json.loads(raw)
+            print(f"[{team_tag}] Requesting team data (attempt {attempt})")
+            resp = requests.get(url, timeout=10)
+            if resp.status_code != 200:
+                print(f"[{team_tag}] Non-200 status code: {resp.status_code}")
+                time.sleep(delay)
+                continue
+
+            data = resp.json()
             if data.get("status") == "OK":
                 return data["results"].get("season", []), data["results"].get("stats", [])
-            print(f"[{team_tag}] API returned status: {data.get('status')}")
-            return [], []
-        except TimeoutException:
-            print(f"[{team_tag}] page load timed out")
+            print(f"[{team_tag}] API returned unexpected status: {data.get('status')}")
             return [], []
         except Exception as e:
-            print(f"[{team_tag}] error: {e} (retrying in {delay}s)")
+            print(f"[{team_tag}] Request failed: {e} (retrying in {delay}s)")
             time.sleep(delay)
     return [], []
 
@@ -138,7 +97,7 @@ all_players = []
 team_summary = {}
 
 for tag in TEAM_TAGS:
-    season_data, stats_data = get_team_data(driver, tag)
+    season_data, stats_data = get_team_data(tag)
     if not season_data:
         print(f"[{tag}] no data, skipping.")
         continue
@@ -205,5 +164,3 @@ if all_players:
     df2.to_csv(os.path.join(csv_archive_dir, f'nitrotype_team_leaderboard_{date_stamp}.csv'), index=False)
 else:
     print("No valid player data found. Please verify team tags and API responses.")
-
-driver.quit()
